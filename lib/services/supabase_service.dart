@@ -87,7 +87,7 @@ class SupabaseMeasurementService {
   /// 체중/체성분 측정 데이터 저장
   Future<bool> saveBodyComposition(BodyComposition composition) async {
     if (!_initialized) {
-      lastError = '미초기화';
+      lastError = 'no inicializado';
       return false;
     }
 

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/constants/korean_strings.dart';
+import '../../core/constants/app_strings.dart';
 import '../providers/ble_providers.dart';
 
 /// 기기 검색 화면
@@ -31,7 +31,7 @@ class _DeviceScanScreenState extends ConsumerState<DeviceScanScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(KoreanStrings.screenScanTitle),
+        title: const Text(AppStrings.screenScanTitle),
         actions: [
           if (isScanning)
             IconButton(
@@ -39,7 +39,7 @@ class _DeviceScanScreenState extends ConsumerState<DeviceScanScreen> {
                 ref.read(scanControllerProvider.notifier).stopScan();
               },
               icon: const Icon(Icons.stop),
-              tooltip: KoreanStrings.stopScan,
+              tooltip: AppStrings.stopScan,
             ),
         ],
       ),
@@ -72,7 +72,7 @@ class _DeviceScanScreenState extends ConsumerState<DeviceScanScreen> {
                     onPressed: () {
                       ref.read(scanControllerProvider.notifier).startScan();
                     },
-                    child: const Text(KoreanStrings.actionRetry),
+                    child: const Text(AppStrings.actionRetry),
                   ),
                 ],
               ),
@@ -95,8 +95,8 @@ class _DeviceScanScreenState extends ConsumerState<DeviceScanScreen> {
                         const SizedBox(height: 16),
                         Text(
                           isScanning
-                              ? KoreanStrings.deviceSearching
-                              : KoreanStrings.emptySearchResults,
+                              ? AppStrings.deviceSearching
+                              : AppStrings.emptySearchResults,
                           style: theme.textTheme.bodyLarge?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
@@ -125,14 +125,14 @@ class _DeviceScanScreenState extends ConsumerState<DeviceScanScreen> {
                 ref.read(scanControllerProvider.notifier).startScan();
               },
               icon: const Icon(Icons.refresh),
-              label: const Text(KoreanStrings.scanForDevices),
+              label: const Text(AppStrings.scanForDevices),
             )
           : null,
     );
   }
 
   String _getErrorMessage(Object? error) {
-    if (error == null) return KoreanStrings.errorUnknown;
+    if (error == null) return AppStrings.errorUnknown;
     return error.toString();
   }
 
@@ -151,7 +151,7 @@ class _DeviceScanScreenState extends ConsumerState<DeviceScanScreen> {
           children: [
             const CircularProgressIndicator(),
             const SizedBox(width: 20),
-            Text('${device.name} 연결 중...'),
+            Text('Conectando ${device.name}...'),
           ],
         ),
       ),
@@ -191,7 +191,7 @@ class _DeviceScanScreenState extends ConsumerState<DeviceScanScreen> {
         Navigator.of(context).pop(); // 로딩 다이얼로그 닫기
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('연결 실패: $e'),
+            content: Text('Error de conexión: $e'),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -203,15 +203,15 @@ class _DeviceScanScreenState extends ConsumerState<DeviceScanScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('기기 유형 선택'),
+        title: const Text('Seleccionar tipo de dispositivo'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('${device.name}의 유형을 선택하세요.'),
+            Text('Seleccione el tipo de ${device.name}.'),
             const SizedBox(height: 16),
             ListTile(
               leading: const Icon(Icons.monitor_weight_outlined),
-              title: const Text(KoreanStrings.deviceScale),
+              title: const Text(AppStrings.deviceScale),
               onTap: () {
                 Navigator.pop(context);
                 _connectAsDeviceType(device, DeviceType.xiaomiScale);
@@ -219,7 +219,7 @@ class _DeviceScanScreenState extends ConsumerState<DeviceScanScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.favorite_outline),
-              title: const Text(KoreanStrings.deviceBloodPressure),
+              title: const Text(AppStrings.deviceBloodPressure),
               onTap: () {
                 Navigator.pop(context);
                 _connectAsDeviceType(device, DeviceType.ihealthBloodPressure);
@@ -227,7 +227,7 @@ class _DeviceScanScreenState extends ConsumerState<DeviceScanScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.water_drop_outlined),
-              title: const Text(KoreanStrings.deviceGlucose),
+              title: const Text(AppStrings.deviceGlucose),
               onTap: () {
                 Navigator.pop(context);
                 _connectAsDeviceType(device, DeviceType.ihealthGlucose);
@@ -238,7 +238,7 @@ class _DeviceScanScreenState extends ConsumerState<DeviceScanScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text(KoreanStrings.actionCancel),
+            child: const Text(AppStrings.actionCancel),
           ),
         ],
       ),
@@ -258,7 +258,7 @@ class _DeviceScanScreenState extends ConsumerState<DeviceScanScreen> {
           children: [
             const CircularProgressIndicator(),
             const SizedBox(width: 20),
-            Text('${device.name} 연결 중...'),
+            Text('Conectando ${device.name}...'),
           ],
         ),
       ),
@@ -295,7 +295,7 @@ class _DeviceScanScreenState extends ConsumerState<DeviceScanScreen> {
         Navigator.of(context).pop(); // 로딩 다이얼로그 닫기
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('연결 실패: $e'),
+            content: Text('Error de conexión: $e'),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -381,13 +381,13 @@ class _DeviceListTile extends StatelessWidget {
   String _getDeviceTypeName(DeviceType type) {
     switch (type) {
       case DeviceType.xiaomiScale:
-        return KoreanStrings.deviceXiaomiScale;
+        return AppStrings.deviceXiaomiScale;
       case DeviceType.ihealthBloodPressure:
-        return KoreanStrings.deviceIHealthBP;
+        return AppStrings.deviceIHealthBP;
       case DeviceType.ihealthGlucose:
-        return KoreanStrings.deviceIHealthGlucose;
+        return AppStrings.deviceIHealthGlucose;
       case DeviceType.unknown:
-        return '알 수 없는 기기';
+        return 'Dispositivo desconocido';
     }
   }
 }

@@ -101,21 +101,21 @@ class BloodPressureReading {
     return BloodPressureCategory.normal;
   }
 
-  /// 혈압 분류 한국어 명칭
+  /// Nombre de la categoría de presión arterial
   String get categoryName {
     switch (category) {
       case BloodPressureCategory.normal:
-        return '정상';
+        return 'Normal';
       case BloodPressureCategory.elevated:
-        return '주의';
+        return 'Elevada';
       case BloodPressureCategory.hypertensionStage1:
-        return '고혈압 1단계';
+        return 'Hipertensión Etapa 1';
       case BloodPressureCategory.hypertensionStage2:
-        return '고혈압 2단계';
+        return 'Hipertensión Etapa 2';
       case BloodPressureCategory.hypertensiveCrisis:
-        return '고혈압 위기';
+        return 'Crisis hipertensiva';
       case BloodPressureCategory.hypotension:
-        return '저혈압';
+        return 'Hipotensión';
     }
   }
 

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/constants/korean_strings.dart';
+import '../../core/constants/app_strings.dart';
 import '../../data/models/body_composition.dart';
 import '../../data/models/blood_pressure.dart';
 import '../../data/models/glucose_reading.dart';
@@ -94,9 +94,9 @@ class MeasurementCard extends StatelessWidget {
     final diff = now.difference(timestamp);
 
     if (diff.inDays == 0) {
-      return '${KoreanStrings.today} ${DateFormat('HH:mm').format(timestamp)}';
+      return '${AppStrings.today} ${DateFormat('HH:mm').format(timestamp)}';
     } else if (diff.inDays == 1) {
-      return '${KoreanStrings.yesterday} ${DateFormat('HH:mm').format(timestamp)}';
+      return '${AppStrings.yesterday} ${DateFormat('HH:mm').format(timestamp)}';
     } else {
       return DateFormat('MM/dd HH:mm').format(timestamp);
     }
@@ -117,7 +117,7 @@ class BodyCompositionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MeasurementCard(
-      title: KoreanStrings.deviceScale,
+      title: AppStrings.deviceScale,
       icon: Icons.monitor_weight_outlined,
       color: Colors.blue,
       timestamp: data.timestamp,
@@ -126,8 +126,8 @@ class BodyCompositionCard extends StatelessWidget {
         children: [
           _MainValue(
             value: data.weight.toStringAsFixed(1),
-            unit: KoreanStrings.unitKg,
-            label: KoreanStrings.labelWeight,
+            unit: AppStrings.unitKg,
+            label: AppStrings.labelWeight,
           ),
           if (data.hasBodyComposition) ...[
             const SizedBox(height: 12),
@@ -137,23 +137,23 @@ class BodyCompositionCard extends StatelessWidget {
                 if (data.bmi != null)
                   Expanded(
                     child: _SubValue(
-                      label: KoreanStrings.labelBmi,
+                      label: AppStrings.labelBmi,
                       value: data.bmi!.toStringAsFixed(1),
                     ),
                   ),
                 if (data.bodyFatPercentage != null)
                   Expanded(
                     child: _SubValue(
-                      label: KoreanStrings.labelBodyFat,
+                      label: AppStrings.labelBodyFat,
                       value: '${data.bodyFatPercentage!.toStringAsFixed(1)}%',
                     ),
                   ),
                 if (data.muscleMass != null)
                   Expanded(
                     child: _SubValue(
-                      label: KoreanStrings.labelMuscleMass,
+                      label: AppStrings.labelMuscleMass,
                       value:
-                          '${data.muscleMass!.toStringAsFixed(1)}${KoreanStrings.unitKg}',
+                          '${data.muscleMass!.toStringAsFixed(1)}${AppStrings.unitKg}',
                     ),
                   ),
               ],
@@ -165,22 +165,22 @@ class BodyCompositionCard extends StatelessWidget {
                 if (data.waterPercentage != null)
                   Expanded(
                     child: _SubValue(
-                      label: KoreanStrings.labelWaterPercentage,
+                      label: AppStrings.labelWaterPercentage,
                       value: '${data.waterPercentage!.toStringAsFixed(1)}%',
                     ),
                   ),
                 if (data.boneMass != null)
                   Expanded(
                     child: _SubValue(
-                      label: KoreanStrings.labelBoneMass,
+                      label: AppStrings.labelBoneMass,
                       value:
-                          '${data.boneMass!.toStringAsFixed(2)}${KoreanStrings.unitKg}',
+                          '${data.boneMass!.toStringAsFixed(2)}${AppStrings.unitKg}',
                     ),
                   ),
                 if (data.visceralFat != null)
                   Expanded(
                     child: _SubValue(
-                      label: KoreanStrings.labelVisceralFat,
+                      label: AppStrings.labelVisceralFat,
                       value: '${data.visceralFat}',
                     ),
                   ),
@@ -193,22 +193,22 @@ class BodyCompositionCard extends StatelessWidget {
                 if (data.basalMetabolism != null)
                   Expanded(
                     child: _SubValue(
-                      label: KoreanStrings.labelBasalMetabolism,
+                      label: AppStrings.labelBasalMetabolism,
                       value:
-                          '${data.basalMetabolism}${KoreanStrings.unitKcal}',
+                          '${data.basalMetabolism}${AppStrings.unitKcal}',
                     ),
                   ),
                 if (data.metabolicAge != null)
                   Expanded(
                     child: _SubValue(
-                      label: KoreanStrings.labelMetabolicAge,
-                      value: '${data.metabolicAge}${KoreanStrings.unitYears}',
+                      label: AppStrings.labelMetabolicAge,
+                      value: '${data.metabolicAge}${AppStrings.unitYears}',
                     ),
                   ),
                 if (data.proteinPercentage != null)
                   Expanded(
                     child: _SubValue(
-                      label: KoreanStrings.labelProteinPercentage,
+                      label: AppStrings.labelProteinPercentage,
                       value: '${data.proteinPercentage!.toStringAsFixed(1)}%',
                     ),
                   ),
@@ -235,7 +235,7 @@ class BloodPressureCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MeasurementCard(
-      title: KoreanStrings.deviceBloodPressure,
+      title: AppStrings.deviceBloodPressure,
       icon: Icons.favorite_outline,
       color: _getCategoryColor(data.category),
       timestamp: data.timestamp,
@@ -269,7 +269,7 @@ class BloodPressureCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                KoreanStrings.unitMmHg,
+                AppStrings.unitMmHg,
                 style: TextStyle(
                   fontSize: 14,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -288,7 +288,7 @@ class BloodPressureCard extends StatelessWidget {
               if (data.irregularPulseDetected) ...[
                 const SizedBox(width: 8),
                 _CategoryBadge(
-                  label: KoreanStrings.labelIrregularPulse,
+                  label: AppStrings.labelIrregularPulse,
                   color: Colors.orange,
                 ),
               ],
@@ -300,14 +300,14 @@ class BloodPressureCard extends StatelessWidget {
               if (data.pulse != null)
                 Expanded(
                   child: _SubValue(
-                    label: KoreanStrings.labelPulse,
-                    value: '${data.pulse} ${KoreanStrings.unitBpm}',
+                    label: AppStrings.labelPulse,
+                    value: '${data.pulse} ${AppStrings.unitBpm}',
                   ),
                 ),
               Expanded(
                 child: _SubValue(
-                  label: KoreanStrings.labelMeanArterialPressure,
-                  value: '${data.calculatedMAP} ${KoreanStrings.unitMmHg}',
+                  label: AppStrings.labelMeanArterialPressure,
+                  value: '${data.calculatedMAP} ${AppStrings.unitMmHg}',
                 ),
               ),
             ],
@@ -349,7 +349,7 @@ class GlucoseCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MeasurementCard(
-      title: KoreanStrings.deviceGlucose,
+      title: AppStrings.deviceGlucose,
       icon: Icons.water_drop_outlined,
       color: _getCategoryColor(data.category),
       timestamp: data.timestamp,
@@ -358,8 +358,8 @@ class GlucoseCard extends StatelessWidget {
         children: [
           _MainValue(
             value: data.glucoseMgDl.toStringAsFixed(0),
-            unit: KoreanStrings.unitMgDl,
-            label: KoreanStrings.labelGlucose,
+            unit: AppStrings.unitMgDl,
+            label: AppStrings.labelGlucose,
             color: _getCategoryColor(data.category),
           ),
           const SizedBox(height: 8),

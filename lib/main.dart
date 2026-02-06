@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
-import 'core/constants/korean_strings.dart';
+import 'core/constants/app_strings.dart';
 import 'presentation/screens/home_screen.dart';
 import 'services/background_ble_service.dart';
 import 'services/supabase_service.dart';
@@ -92,7 +92,7 @@ class HealthMonitorApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: KoreanStrings.appName,
+      title: AppStrings.appName,
       debugShowCheckedModeBanner: false,
       theme: _buildLightTheme(),
       darkTheme: _buildDarkTheme(),

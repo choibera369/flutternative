@@ -96,13 +96,13 @@ class BackgroundBleService {
     _userAge = age;
     _userHeight = height;
     _userIsMale = isMale;
-    _log('사용자 프로필 설정: 나이=$age, 키=$height cm, 성별=${isMale ? "남" : "여"}');
+    _log('Perfil: edad=$age, altura=$height cm, sexo=${isMale ? "M" : "F"}');
   }
 
   /// 완전 초기화 (서비스 stop → 상태 클리어 → 서비스 start)
   /// 스캔 구독, 타이머, 연결 등 모든 리소스를 해제하고 처음부터 다시 시작
   Future<void> resetToStandby() async {
-    _log('═══ 완전 초기화 시작 ═══');
+    _log('═══ Reinicio completo iniciado ═══');
 
     // 1. 서비스 완전 중지 (모든 구독, 타이머, 연결 해제)
     await stop();
@@ -130,10 +130,10 @@ class BackgroundBleService {
     _uploadStatusSubject.add('');
 
     // 4. 서비스 재시작
-    _log('서비스 재시작...');
+    _log('Reiniciando servicio...');
     await start();
 
-    _log('═══ 완전 초기화 완료 ═══');
+    _log('═══ Reinicio completo completado ═══');
   }
 
   /// 페어링된 Omron 연결 시도 타이머
@@ -163,17 +163,17 @@ class BackgroundBleService {
   /// 서비스 시작
   Future<void> start() async {
     if (_isRunning) {
-      _log('이미 실행 중');
+      _log('Ya en ejecución');
       return;
     }
 
-    _log('서비스 시작...');
+    _log('Iniciando servicio...');
 
     // Android: 포그라운드 서비스 시작 전 권한 확인 필수
     if (Platform.isAndroid) {
       final hasPermissions = await _checkAndRequestPermissions();
       if (!hasPermissions) {
-        _log('블루투스 권한이 거부됨 - 서비스 시작 불가');
+        _log('Permiso Bluetooth denegado - no se puede iniciar');
         _stateSubject.add(BackgroundBleState.error);
         return;
       }
@@ -181,9 +181,9 @@ class BackgroundBleService {
       // 포그라운드 서비스 시작 (권한 획득 후)
       try {
         await _channel.invokeMethod('startForegroundService');
-        _log('포그라운드 서비스 시작됨');
+        _log('Servicio foreground iniciado');
       } catch (e) {
-        _log('포그라운드 서비스 시작 실패: $e');
+        _log('Error al iniciar servicio foreground: $e');
         _stateSubject.add(BackgroundBleState.error);
         return;
       }
@@ -202,22 +202,20 @@ class BackgroundBleService {
     // Xiaomi 체중계는 BLE 광고 데이터에서 직접 읽으므로 GATT 연결 불필요
     // 스캔만으로 데이터 수집 가능
     if (_bondedXiaomiAddress != null) {
-      _log('[체중계] Xiaomi 페어링됨 - 스캔 모드로 데이터 수집');
+      _log('[Báscula] Xiaomi emparejado - recopilando datos por escaneo');
     }
 
     // BLE 어댑터 상태 모니터링 시작
     _bleStatusSubscription?.cancel();
     _bleStatusSubscription = _ble.statusStream.listen((status) {
-      _log('BLE 어댑터 상태: $status');
+      _log('Estado BLE: $status');
       if (status == BleStatus.ready) {
-        // BLE 준비됨 → 스캔이 없으면 시작
         if (_scanSubscription == null && _isRunning) {
-          _log('BLE 준비 완료 → 스캔 시작');
+          _log('BLE listo → iniciando escaneo');
           _startScan();
         }
       } else {
-        // BLE 비활성 → 스캔 중지 후 대기
-        _log('BLE 비활성 ($status) → 스캔 일시 중지, 복구 대기 중');
+        _log('BLE inactivo ($status) → escaneo pausado, esperando recuperación');
         _stopScan();
         _scanRestartTimer?.cancel();
         _scanRestartTimer = null;
@@ -226,18 +224,18 @@ class BackgroundBleService {
 
     // BLE 준비 상태 확인 후 스캔 시작
     final bleStatus = _ble.status;
-    _log('현재 BLE 상태: $bleStatus');
+    _log('Estado BLE actual: $bleStatus');
     if (bleStatus == BleStatus.ready) {
       await _startScan();
     } else {
-      _log('BLE 미준비 ($bleStatus) - BLE 켜짐 대기 중...');
+      _log('BLE no listo ($bleStatus) - esperando activación...');
       _stateSubject.add(BackgroundBleState.scanning);
     }
   }
 
   /// 블루투스 권한 확인 및 요청
   Future<bool> _checkAndRequestPermissions() async {
-    _log('블루투스 권한 확인 중...');
+    _log('Verificando permisos Bluetooth...');
 
     try {
       // Android 12+ (API 31+) 필수 권한
@@ -245,38 +243,37 @@ class BackgroundBleService {
       final bluetoothConnect = await Permission.bluetoothConnect.request();
       final location = await Permission.locationWhenInUse.request();
 
-      _log('권한 상태 - 스캔: $bluetoothScan, 연결: $bluetoothConnect, 위치: $location');
+      _log('Permisos - escaneo: $bluetoothScan, conexión: $bluetoothConnect, ubicación: $location');
 
       if (bluetoothScan.isDenied || bluetoothConnect.isDenied) {
-        _log('블루투스 권한 거부됨');
+        _log('Permiso Bluetooth denegado');
         return false;
       }
 
       if (location.isDenied) {
-        _log('위치 권한 거부됨 (BLE 스캔에 필요)');
+        _log('Permiso ubicación denegado (necesario para BLE)');
         return false;
       }
 
-      // Android 13+ (API 33+) 알림 권한 (포그라운드 서비스 필수)
+      // Android 13+ (API 33+)
       final notification = await Permission.notification.request();
-      _log('알림 권한 상태: $notification');
+      _log('Permiso notificación: $notification');
 
-      // 알림 권한은 거부되어도 서비스 시작은 가능 (알림이 안 보일 수 있음)
       if (notification.isDenied) {
-        _log('알림 권한 거부됨 (서비스는 동작하지만 알림이 안 보일 수 있음)');
+        _log('Permiso notificación denegado (servicio funciona pero sin notificaciones)');
       }
 
-      _log('필수 권한 승인됨');
+      _log('Permisos concedidos');
       return true;
     } catch (e) {
-      _log('권한 요청 중 오류: $e');
+      _log('Error solicitando permisos: $e');
       return false;
     }
   }
 
   /// 서비스 중지
   Future<void> stop() async {
-    _log('서비스 중지...');
+    _log('Deteniendo servicio...');
     _isRunning = false;
 
     await _stopScan();
@@ -316,7 +313,7 @@ class BackgroundBleService {
       try {
         await _channel.invokeMethod('stopForegroundService');
       } catch (e) {
-        _log('포그라운드 서비스 중지 실패: $e');
+        _log('Error al detener servicio foreground: $e');
       }
     }
 
@@ -332,7 +329,7 @@ class BackgroundBleService {
     // BLE 어댑터 상태 확인 (꺼져 있으면 스캔 불가)
     final bleStatus = _ble.status;
     if (bleStatus != BleStatus.ready) {
-      _log('BLE 미준비 ($bleStatus) - 스캔 대기');
+      _log('BLE no listo ($bleStatus) - esperando');
       _stateSubject.add(BackgroundBleState.scanning);
       // BLE가 꺼져있으면 재시도하지 않음 - _bleStatusSubscription이 켜질 때 자동 시작
       return;
@@ -350,7 +347,7 @@ class BackgroundBleService {
       _scanSubscription = scanStream.listen(
         (device) => _onDeviceDiscovered(device),
         onError: (error) {
-          _log('스캔 에러: $error');
+          _log('Error de escaneo: $error');
           _scheduleRescan();
         },
       );
@@ -363,7 +360,7 @@ class BackgroundBleService {
         }
       });
     } catch (e) {
-      _log('스캔 시작 실패: $e');
+      _log('Error al iniciar escaneo: $e');
       _scheduleRescan();
     }
   }
@@ -379,11 +376,11 @@ class BackgroundBleService {
     try {
       final bondedDevices = await _channel.invokeMethod<List>('getBondedDevices');
       if (bondedDevices == null || bondedDevices.isEmpty) {
-        _log('페어링된 BLE 기기 없음');
+        _log('No hay dispositivos BLE emparejados');
         return;
       }
 
-      _log('페어링된 기기 ${bondedDevices.length}개 발견');
+      _log('${bondedDevices.length} dispositivos emparejados encontrados');
 
       for (final device in bondedDevices) {
         final name = device['name'] as String? ?? '';
@@ -391,24 +388,24 @@ class BackgroundBleService {
 
         // Omron 혈압계인지 확인
         if (_isOmronDevice(name) && _bondedOmronAddress == null) {
-          _log('★ 페어링된 Omron 발견: $name');
+          _log('★ Omron emparejado encontrado: $name');
           _bondedOmronAddress = address;
           _bondedOmronName = name;
         }
 
         // Xiaomi 체중계인지 확인
         if (_isXiaomiScale(name) && _bondedXiaomiAddress == null) {
-          _log('★ 페어링된 Xiaomi 체중계 발견: $name');
+          _log('★ Báscula Xiaomi emparejada encontrada: $name');
           _bondedXiaomiAddress = address;
           _bondedXiaomiName = name;
         }
       }
 
       if (_bondedOmronAddress == null && _bondedXiaomiAddress == null) {
-        _log('페어링된 건강 기기 없음 (Omron/Xiaomi)');
+        _log('No hay dispositivos de salud emparejados (Omron/Xiaomi)');
       }
     } catch (e) {
-      _log('페어링 기기 확인 실패: $e');
+      _log('Error verificando dispositivos emparejados: $e');
     }
   }
 
@@ -417,15 +414,15 @@ class BackgroundBleService {
     _bondedOmronTimer?.cancel();
     _log('');
     _log('═══════════════════════════════════════════════');
-    _log('  Omron 혈압계 연결 대기 중');
+    _log('  Esperando tensiómetro Omron');
     _log('═══════════════════════════════════════════════');
     _log('');
-    _log('▶ 혈압 측정 방법:');
-    _log('  1. 커프를 팔에 감고 START 버튼 누름');
-    _log('  2. 측정 완료까지 대기');
-    _log('  3. 측정 완료 후 자동으로 데이터 전송됨');
+    _log('▶ Instrucciones:');
+    _log('  1. Coloque el manguito y presione START');
+    _log('  2. Espere a que termine la medición');
+    _log('  3. Los datos se envían automáticamente');
     _log('');
-    _log('※ 처음 연결시: Bluetooth 버튼 3초 누름 (P 표시)');
+    _log('※ Primera vez: mantenga Bluetooth 3 seg (muestra P)');
     _log('');
 
     // 5초마다 연결 시도 (Omron이 전송 모드일 때 연결됨)
@@ -465,7 +462,7 @@ class BackgroundBleService {
     _omronConnectAttemptCount++;
     // 10번마다 한번씩만 로그 (로그 과다 방지)
     if (_omronConnectAttemptCount % 10 == 1) {
-      _log('[혈압계] 연결 대기 중... (혈압 측정 후 자동 연결)');
+      _log('[Tensiómetro] Esperando conexión... (se conecta tras medir)');
     }
 
     _omronConnecting = true;
@@ -495,7 +492,7 @@ class BackgroundBleService {
             }
 
             // 연결 성공!
-            _log('★★★ Omron 혈압계 연결 성공! ★★★');
+            _log('★★★ Tensiómetro Omron conectado! ★★★');
             _bondedOmronTimer?.cancel();
             _connectedOmronId = _bondedOmronAddress;
             _omronConnecting = false;
@@ -519,7 +516,7 @@ class BackgroundBleService {
             _omronConnecting = false;
             // 연결 후 끊어진 경우
             if (_connectedOmronId != null) {
-              _log('[혈압계] 연결 해제됨');
+              _log('[Tensiómetro] Desconectado');
               _onOmronDisconnected();
             }
           }
@@ -531,7 +528,7 @@ class BackgroundBleService {
             completer.complete(false);
           }
           if (_connectedOmronId != null) {
-            _log('[혈압계] 연결 에러: $e');
+            _log('[Tensiómetro] Error de conexión: $e');
             _onOmronDisconnected();
           }
         },
@@ -555,13 +552,13 @@ class BackgroundBleService {
     _bondedXiaomiTimer?.cancel();
     _log('');
     _log('═══════════════════════════════════════════════');
-    _log('  Xiaomi 체중계 연결 대기 중');
+    _log('  Esperando báscula Xiaomi');
     _log('═══════════════════════════════════════════════');
     _log('');
-    _log('▶ 체중 측정 방법:');
-    _log('  1. 체중계 위에 올라감');
-    _log('  2. 측정 완료까지 대기 (화면 깜빡임 멈춤)');
-    _log('  3. 체중계에서 내려오면 데이터 전송됨');
+    _log('▶ Instrucciones:');
+    _log('  1. Suba a la báscula');
+    _log('  2. Espere a que termine (pantalla deja de parpadear)');
+    _log('  3. Baje de la báscula para enviar datos');
     _log('');
 
     // 3초마다 연결 시도 (체중계가 측정 모드일 때 연결됨)
@@ -600,7 +597,7 @@ class BackgroundBleService {
     _xiaomiConnectAttemptCount++;
     // 20번마다 한번씩만 로그 (로그 과다 방지)
     if (_xiaomiConnectAttemptCount % 20 == 1) {
-      _log('[체중계] 연결 대기 중... (체중계 위에 올라가면 자동 연결)');
+      _log('[Báscula] Esperando conexión... (suba a la báscula)');
     }
 
     try {
@@ -628,7 +625,7 @@ class BackgroundBleService {
             }
 
             // 연결 성공!
-            _log('★★★ Xiaomi 체중계 연결 성공! ★★★');
+            _log('★★★ Báscula Xiaomi conectado! ★★★');
             _bondedXiaomiTimer?.cancel();
             _connectedXiaomiId = _bondedXiaomiAddress;
             _stateSubject.add(BackgroundBleState.connected);
@@ -650,7 +647,7 @@ class BackgroundBleService {
             }
             // 연결 후 끊어진 경우
             if (_connectedXiaomiId != null) {
-              _log('[체중계] 연결 해제됨');
+              _log('[Báscula] Desconectado');
               _onXiaomiDisconnected();
             }
           }
@@ -661,7 +658,7 @@ class BackgroundBleService {
             completer.complete(false);
           }
           if (_connectedXiaomiId != null) {
-            _log('[체중계] 연결 에러: $e');
+            _log('[Báscula] Error de conexión: $e');
             _onXiaomiDisconnected();
           }
         },
@@ -694,7 +691,7 @@ class BackgroundBleService {
     if (_isOmronDevice(device.name) && _connectedOmronId == null && _bondedOmronAddress == null) {
       // 쿨다운 중이거나 이미 연결 시도 중이면 무시
       if (_omronCooldown || _omronConnecting) return;
-      _log('★★★ Omron 혈압계 발견 (스캔): ${device.name} ★★★');
+      _log('★★★ Tensiómetro Omron encontrado (escaneo): ${device.name} ★★★');
       _connectToOmron(device.id, device.name);
       return;
     }
@@ -733,7 +730,7 @@ class BackgroundBleService {
       if (_lastXiaomiLogTime == null ||
           now.difference(_lastXiaomiLogTime!) > const Duration(seconds: 10)) {
         _lastXiaomiLogTime = now;
-        _log('[체중계] MIBFS 광고 수신 (체중 데이터 없음)');
+        _log('[Báscula] MIBFS anuncio recibido (sin datos de peso)');
         if (serviceData.isNotEmpty) {
           for (final entry in serviceData.entries) {
             final hexData = entry.value.map((b) => '0x${b.toRadixString(16).padLeft(2, '0')}').join(', ');
@@ -779,11 +776,11 @@ class BackgroundBleService {
     // 로그 출력
     final hexStr = weightData.map((b) => '0x${b.toRadixString(16).padLeft(2, '0')}').join(', ');
     if (isWeightRemoved) {
-      _log('★★★ Xiaomi 체중계 측정 완료! ★★★');
-      _log('[체중계] 최종 데이터: ${weightData.length} bytes');
+      _log('★★★ Medición de báscula Xiaomi completado! ★★★');
+      _log('[Báscula] Datos finales: ${weightData.length} bytes');
       _log('Raw: $hexStr');
     } else {
-      _log('[체중계] 측정 중: ${weightData.length} bytes (flags=0x${flags.toRadixString(16)})');
+      _log('[Báscula] Midiendo: ${weightData.length} bytes (flags=0x${flags.toRadixString(16)})');
     }
 
     // 모든 데이터를 파싱 (중간값은 UI만 업데이트, 최종값은 UI+Supabase)
@@ -818,7 +815,7 @@ class BackgroundBleService {
   Future<void> _connectToXiaomi(String deviceId, String deviceName) async {
     if (_connectedXiaomiId != null) return;
 
-    _log('[체중계] 연결 중: $deviceName');
+    _log('[Báscula] Conectando: $deviceName');
     _connectedXiaomiId = deviceId;
 
     try {
@@ -831,10 +828,10 @@ class BackgroundBleService {
         (update) async {
           switch (update.connectionState) {
             case DeviceConnectionState.connecting:
-              _log('[체중계] 연결 중...');
+              _log('[Báscula] Conectando...');
               break;
             case DeviceConnectionState.connected:
-              _log('[체중계] 연결됨!');
+              _log('[Báscula] Conectado!');
               // GATT 안정화 대기
               await Future.delayed(const Duration(milliseconds: 500));
               if (_connectedXiaomiId != null) {
@@ -842,21 +839,21 @@ class BackgroundBleService {
               }
               break;
             case DeviceConnectionState.disconnecting:
-              _log('[체중계] 연결 해제 중...');
+              _log('[Báscula] Desconectando...');
               break;
             case DeviceConnectionState.disconnected:
-              _log('[체중계] 연결 해제됨');
+              _log('[Báscula] Desconectado');
               _onXiaomiDisconnected();
               break;
           }
         },
         onError: (error) {
-          _log('[체중계] 연결 에러: $error');
+          _log('[Báscula] Error de conexión: $error');
           _onXiaomiDisconnected();
         },
       );
     } catch (e) {
-      _log('[체중계] 연결 실패: $e');
+      _log('[Báscula] Fallo de conexión: $e');
       _onXiaomiDisconnected();
     }
   }
@@ -867,9 +864,9 @@ class BackgroundBleService {
     if (_omronConnecting) return;
 
     _omronConnecting = true;
-    _log('[혈압계] 연결 중: $deviceName');
+    _log('[Tensiómetro] Conectando: $deviceName');
     _connectedOmronId = deviceId;
-    _bondedOmronTimer?.cancel(); // 연결되면 주기적 시도 중지
+    _bondedOmronTimer?.cancel();
 
     try {
       _omronConnectionSubscription = _ble
@@ -881,36 +878,34 @@ class BackgroundBleService {
         (update) async {
           switch (update.connectionState) {
             case DeviceConnectionState.connecting:
-              _log('[혈압계] 연결 중...');
+              _log('[Tensiómetro] Conectando...');
               break;
             case DeviceConnectionState.connected:
-              _log('[혈압계] 연결됨!');
+              _log('[Tensiómetro] Conectado!');
               _omronConnecting = false;
-              // GATT 안정화 대기 (Omron은 연결 직후 서비스 탐색하면 끊어짐)
               await Future.delayed(const Duration(milliseconds: 500));
-              // 대기 중 연결이 끊어졌을 수 있으므로 확인
               if (_connectedOmronId != null) {
                 await _subscribeToBloodPressure(deviceId);
               }
               break;
             case DeviceConnectionState.disconnecting:
-              _log('[혈압계] 연결 해제 중...');
+              _log('[Tensiómetro] Desconectando...');
               break;
             case DeviceConnectionState.disconnected:
-              _log('[혈압계] 연결 해제됨');
+              _log('[Tensiómetro] Desconectado');
               _omronConnecting = false;
               _onOmronDisconnected();
               break;
           }
         },
         onError: (error) {
-          _log('[혈압계] 연결 에러: $error');
+          _log('[Tensiómetro] Error de conexión: $error');
           _omronConnecting = false;
           _onOmronDisconnected();
         },
       );
     } catch (e) {
-      _log('[혈압계] 연결 실패: $e');
+      _log('[Tensiómetro] Fallo de conexión: $e');
       _omronConnecting = false;
       _onOmronDisconnected();
     }
@@ -922,11 +917,11 @@ class BackgroundBleService {
 
     try {
       // 1. 서비스 탐색 (로깅 최소화하여 빠르게 진행)
-      _log('[혈압계] 서비스 탐색 중...');
+      _log('[Tensiómetro] Descubriendo servicios...');
       await _ble.discoverAllServices(deviceId);
       final services = await _ble.getDiscoveredServices(deviceId);
 
-      _log('[혈압계] 발견된 서비스 수: ${services.length}');
+      _log('[Tensiómetro] Servicios encontrados: ${services.length}');
 
       // 2. Blood Pressure Service 확인
       final bpService = services.where(
@@ -934,16 +929,15 @@ class BackgroundBleService {
       ).toList();
 
       if (bpService.isEmpty) {
-        _log('[혈압계] Blood Pressure Service (0x1810) 없음');
-        // 서비스 목록을 디버그용으로 출력
+        _log('[Tensiómetro] Blood Pressure Service (0x1810) no encontrado');
         for (final service in services) {
-          _log('  서비스: ${service.id}');
+          _log('  Servicio: ${service.id}');
         }
         _onOmronDisconnected();
         return;
       }
 
-      _log('[혈압계] √ Blood Pressure Service 발견');
+      _log('[Tensiómetro] √ Blood Pressure Service encontrado');
 
       // 3. 서비스 탐색 후 잠시 대기 (GATT 테이블 안정화)
       await Future.delayed(const Duration(milliseconds: 300));
@@ -960,18 +954,18 @@ class BackgroundBleService {
 
       _omronNotificationSubscription = _ble.subscribeToCharacteristic(bpChar).listen(
         (data) {
-          _log('혈압 데이터 수신: ${data.length} bytes');
+          _log('Datos de presión arterial: ${data.length} bytes');
           _parseBloodPressureData(data, deviceId);
         },
         onError: (error) {
-          _log('[혈압계] Indication 에러: $error');
+          _log('[Tensiómetro] Error de indication: $error');
         },
       );
 
-      _log('[혈압계] √ Blood Pressure Measurement 구독 완료');
-      _log('[혈압계] 데이터 대기 중... (지금 혈압 측정하세요!)');
+      _log('[Tensiómetro] √ Suscripción completado');
+      _log('[Tensiómetro] Esperando datos... (mida la presión arterial ahora)');
     } catch (e) {
-      _log('[혈압계] 구독 실패: $e');
+      _log('[Tensiómetro] Error de suscripción: $e');
       _onOmronDisconnected();
     }
   }
@@ -991,17 +985,17 @@ class BackgroundBleService {
           priority: ConnectionPriority.highPerformance,
         );
       } catch (e) {
-        _log('[체중계] 연결 우선순위 설정 실패 (무시): $e');
+        _log('[Báscula] Error prioridad conexión (ignorado): $e');
       }
 
       // 2. 서비스 디스커버리
-      _log('[체중계] 서비스 탐색 중...');
+      _log('[Báscula] Descubriendo servicios...');
       await _ble.discoverAllServices(deviceId);
       final services = await _ble.getDiscoveredServices(deviceId);
-      _log('[체중계] 발견된 서비스 수: ${services.length}');
+      _log('[Báscula] Servicios encontrados: ${services.length}');
       for (final service in services) {
         final chars = service.characteristics.map((c) => c.id.toString().substring(4, 8)).join(', ');
-        _log('  서비스 ${service.id.toString().substring(4, 8)}: [$chars]');
+        _log('  Servicio ${service.id.toString().substring(4, 8)}: [$chars]');
       }
 
       await Future.delayed(const Duration(milliseconds: 300));
@@ -1019,16 +1013,16 @@ class BackgroundBleService {
       try {
         _xiaomiNotificationSubscription = _ble.subscribeToCharacteristic(weightChar).listen(
           (data) {
-            _log('[체중계] 표준 서비스 데이터: ${data.length} bytes');
+            _log('[Báscula] Datos servicio estándar: ${data.length} bytes');
             _parseWeightData(data, deviceId);
           },
           onError: (error) {
-            _log('[체중계] 표준 서비스 스트림 에러: $error');
+            _log('[Báscula] Error stream servicio estándar: $error');
           },
         );
-        _log('[체중계] √ 표준 서비스(181B) 구독 완료');
+        _log('[Báscula] √ Servicio estándar (181B) suscrito');
       } catch (e) {
-        _log('[체중계] ✗ 표준 서비스(181B) 구독 실패: $e');
+        _log('[Báscula] ✗ Error suscripción servicio estándar (181B): $e');
       }
 
       // 3. 샤오미 전용 서비스도 구독 시도 (더 자세한 데이터 포함 가능)
@@ -1041,7 +1035,7 @@ class BackgroundBleService {
 
         _xiaomiCustomSubscription = _ble.subscribeToCharacteristic(customChar).listen(
           (data) {
-            _log('[체중계] 전용 서비스 데이터: ${data.length} bytes');
+            _log('[Báscula] Datos servicio propietario: ${data.length} bytes');
             _log('Custom Raw: ${data.map((b) => '0x${b.toRadixString(16).padLeft(2, '0')}').join(', ')}');
             // 전용 서비스 데이터도 같은 파서로 처리 시도
             if (data.length >= 13) {
@@ -1049,17 +1043,17 @@ class BackgroundBleService {
             }
           },
           onError: (error) {
-            _log('[체중계] 전용 서비스 에러 (무시): $error');
+            _log('[Báscula] Error servicio propietario (ignorado): $error');
           },
         );
-        _log('[체중계] √ 전용 서비스 구독 완료');
+        _log('[Báscula] √ Servicio propietario suscrito');
       } catch (e) {
-        _log('[체중계] 전용 서비스 없음 (정상)');
+        _log('[Báscula] Servicio propietario no disponible (normal)');
       }
 
-      _log('[체중계] 데이터 대기 중...');
+      _log('[Báscula] Esperando datos...');
     } catch (e) {
-      _log('[체중계] 구독 실패: $e');
+      _log('[Báscula] Error de suscripción: $e');
       _onXiaomiDisconnected();
     }
   }
@@ -1100,7 +1094,7 @@ class BackgroundBleService {
       }
 
       if (systolic < 50 || systolic > 250 || diastolic < 30 || diastolic > 150) {
-        _log('비정상 혈압 값 - 무시됨');
+        _log('Valor anormal de presión arterial - ignorado');
         return;
       }
 
@@ -1110,7 +1104,7 @@ class BackgroundBleService {
           _lastBpSentSystolic == systolic &&
           _lastBpSentDiastolic == diastolic &&
           now.difference(_lastBpSentAt!) < _bpDeduplicateWindow) {
-        _log('[혈압계] 중복 데이터 무시 ($systolic/$diastolic)');
+        _log('[Tensiómetro] Datos duplicados ignorados ($systolic/$diastolic)');
         return;
       }
 
@@ -1124,9 +1118,9 @@ class BackgroundBleService {
       );
 
       _log('');
-      _log('═══ 혈압: ${reading.systolic}/${reading.diastolic} mmHg ═══');
+      _log('═══ Presión arterial: ${reading.systolic}/${reading.diastolic} mmHg ═══');
       if (pulse != null) {
-        _log('    맥박: $pulse bpm');
+        _log('    Pulso: $pulse bpm');
       }
       _log('');
 
@@ -1139,13 +1133,13 @@ class BackgroundBleService {
       _bpDisplayTimer?.cancel();
       _bpDisplayTimer = Timer(_displayDuration, () {
         _bpSubject.add(null);
-        _log('[혈압계] 표시 시간 종료 → 스탠드바이');
+        _log('[Tensiómetro] Tiempo de visualización terminado → standby');
       });
 
       _sendToSupabase('bp', reading);
 
     } catch (e) {
-      _log('혈압 파싱 에러: $e');
+      _log('Error parsing presión arterial: $e');
     }
   }
 
@@ -1159,7 +1153,7 @@ class BackgroundBleService {
   /// [11-12]: 체중 (little endian, 0.005 kg 단위)
   void _parseWeightData(List<int> data, String deviceId) {
     if (data.length < 10) {
-      _log('체중 데이터 길이 부족: ${data.length}');
+      _log('Datos de peso insuficientes: ${data.length}');
       return;
     }
 
@@ -1215,15 +1209,15 @@ class BackgroundBleService {
         );
 
         _log('');
-        _log('═══ 체중: ${measurement.weight} kg ═══');
+        _log('═══ Peso: ${measurement.weight} kg ═══');
         if (impedance != null) {
-          _log('    [BIA 기반 - 임피던스: $impedance Ω]');
+          _log('    [BIA - Impedancia: $impedance Ω]');
         } else {
-          _log('    [BMI 기반 추정]');
+          _log('    [Estimación basada en IMC]');
         }
         if (measurement.bodyFatPercentage != null) {
-          _log('    BMI: ${measurement.bmi}, 체지방: ${measurement.bodyFatPercentage}%');
-          _log('    근육량: ${measurement.muscleMass}kg, 체수분: ${measurement.waterPercentage}%');
+          _log('    IMC: ${measurement.bmi}, Grasa: ${measurement.bodyFatPercentage}%');
+          _log('    Músculo: ${measurement.muscleMass}kg, Agua: ${measurement.waterPercentage}%');
         }
         _log('');
 
@@ -1233,7 +1227,7 @@ class BackgroundBleService {
         _weightDisplayTimer?.cancel();
         _weightDisplayTimer = Timer(_displayDuration, () {
           _weightSubject.add(null);
-          _log('[체중계] 표시 시간 종료 → 스탠드바이');
+          _log('[Báscula] Tiempo de visualización terminado → standby');
         });
 
         _sendToSupabase('weight', measurement);
@@ -1258,11 +1252,11 @@ class BackgroundBleService {
         _weightDisplayTimer?.cancel();
         _weightDisplayTimer = Timer(const Duration(seconds: 30), () {
           _weightSubject.add(null);
-          _log('[체중계] 측정 시간 초과 → 스탠드바이');
+          _log('[Báscula] Tiempo de medición agotado → standby');
         });
       }
     } catch (e) {
-      _log('체중 파싱 에러: $e');
+      _log('Error parsing peso: $e');
     }
   }
 
@@ -1311,12 +1305,12 @@ class BackgroundBleService {
   /// Supabase로 데이터 전송
   Future<void> _sendToSupabase(String type, dynamic data) async {
     final initialized = SupabaseMeasurementService.instance.isInitialized;
-    _log('Supabase 전송 중... ($type) [초기화=$initialized]');
-    _uploadStatusSubject.add('전송 중... ($type)');
+    _log('Enviando a Supabase... ($type) [init=$initialized]');
+    _uploadStatusSubject.add('Enviando... ($type)');
 
     if (!initialized) {
-      _log('Supabase 미초기화! 전송 불가');
-      _uploadStatusSubject.add('❌ Supabase 미초기화');
+      _log('Supabase no inicializado! No se puede enviar');
+      _uploadStatusSubject.add('❌ Supabase no inicializado');
       return;
     }
 
@@ -1332,15 +1326,15 @@ class BackgroundBleService {
       }
 
       if (success) {
-        _log('Supabase 전송 완료 ($type)');
-        _uploadStatusSubject.add('✅ $type 전송 완료');
+        _log('Supabase envío completado ($type)');
+        _uploadStatusSubject.add('✅ $type enviado');
       } else {
-        final err = SupabaseMeasurementService.instance.lastError ?? '알 수 없음';
-        _log('Supabase 전송 실패 ($type): $err');
+        final err = SupabaseMeasurementService.instance.lastError ?? 'desconocido';
+        _log('Supabase envío fallo ($type): $err');
         _uploadStatusSubject.add('❌ $err');
       }
     } catch (e) {
-      _log('Supabase 전송 에러 ($type): $e');
+      _log('Supabase error de envío ($type): $e');
       _uploadStatusSubject.add('❌ $e');
     }
   }
@@ -1352,14 +1346,14 @@ class BackgroundBleService {
     try {
       await _xiaomiNotificationSubscription?.cancel();
     } catch (e) {
-      _log('[체중계] notification 구독 해제 에러 (무시): $e');
+      _log('[Báscula] Error al cancelar notificación (ignorado): $e');
     }
     _xiaomiNotificationSubscription = null;
 
     try {
       await _xiaomiCustomSubscription?.cancel();
     } catch (e) {
-      _log('[체중계] custom 구독 해제 에러 (무시): $e');
+      _log('[Báscula] Error al cancelar suscripción custom (ignorado): $e');
     }
     _xiaomiCustomSubscription = null;
 
@@ -1374,7 +1368,7 @@ class BackgroundBleService {
     try {
       await _omronNotificationSubscription?.cancel();
     } catch (e) {
-      _log('[혈압계] notification 구독 해제 에러 (무시): $e');
+      _log('[Tensiómetro] Error al cancelar notificación (ignorado): $e');
     }
     _omronNotificationSubscription = null;
 
@@ -1388,7 +1382,7 @@ class BackgroundBleService {
   void _onXiaomiDisconnected() {
     _disconnectXiaomi();
     _xiaomiConnectAttemptCount = 0;
-    _log('[체중계] 연결 해제 - 다음 측정 시 자동 재연결');
+    _log('[Báscula] Desconectado - reconexión automática en próxima medición');
 
     // 페어링된 Xiaomi가 있으면 bonded 연결 루프 재시작
     if (_isRunning && _bondedXiaomiAddress != null) {

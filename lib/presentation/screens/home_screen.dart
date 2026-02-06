@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/constants/korean_strings.dart';
+import '../../core/constants/app_strings.dart';
 import '../../services/background_ble_service.dart';
 import '../../services/supabase_service.dart';
 import 'background_service_screen.dart';
@@ -16,7 +16,7 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(KoreanStrings.appName),
+        title: const Text(AppStrings.appName),
         actions: [
           IconButton(
             onPressed: () {
@@ -27,7 +27,7 @@ class HomeScreen extends ConsumerWidget {
               );
             },
             icon: const Icon(Icons.settings),
-            tooltip: '설정',
+            tooltip: 'Ajustes',
           ),
         ],
       ),
@@ -104,7 +104,7 @@ class _StandbyButtonState extends State<_StandbyButton> {
               )
             : const Icon(Icons.restart_alt, size: 22),
         label: Text(
-          _resetting ? '초기화 중...' : '스탠드바이',
+          _resetting ? 'Reiniciando...' : 'Standby',
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         style: ElevatedButton.styleFrom(
@@ -142,7 +142,7 @@ class _WeightDisplay extends StatelessWidget {
                     const Icon(Icons.monitor_weight, color: Colors.blue, size: 24),
                     const SizedBox(width: 8),
                     Text(
-                      '체중',
+                      'Peso',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -204,14 +204,14 @@ class _WeightDisplay extends StatelessWidget {
                         if (weight.bodyFatPercentage != null)
                           Expanded(
                             child: _MetricItem(
-                              label: '체지방률',
+                              label: 'Grasa corporal',
                               value: '${weight.bodyFatPercentage!.toStringAsFixed(1)}%',
                             ),
                           ),
                         if (weight.muscleMass != null)
                           Expanded(
                             child: _MetricItem(
-                              label: '근육량',
+                              label: 'Masa muscular',
                               value: '${weight.muscleMass!.toStringAsFixed(1)}kg',
                             ),
                           ),
@@ -226,21 +226,21 @@ class _WeightDisplay extends StatelessWidget {
                         if (weight.waterPercentage != null)
                           Expanded(
                             child: _MetricItem(
-                              label: '체수분',
+                              label: 'Agua corporal',
                               value: '${weight.waterPercentage!.toStringAsFixed(1)}%',
                             ),
                           ),
                         if (weight.boneMass != null)
                           Expanded(
                             child: _MetricItem(
-                              label: '골격량',
+                              label: 'Masa ósea',
                               value: '${weight.boneMass!.toStringAsFixed(2)}kg',
                             ),
                           ),
                         if (weight.visceralFat != null)
                           Expanded(
                             child: _MetricItem(
-                              label: '내장지방',
+                              label: 'Grasa visceral',
                               value: '${weight.visceralFat}',
                             ),
                           ),
@@ -255,21 +255,21 @@ class _WeightDisplay extends StatelessWidget {
                         if (weight.basalMetabolism != null)
                           Expanded(
                             child: _MetricItem(
-                              label: '기초대사',
+                              label: 'Met. basal',
                               value: '${weight.basalMetabolism}kcal',
                             ),
                           ),
                         if (weight.metabolicAge != null)
                           Expanded(
                             child: _MetricItem(
-                              label: '대사연령',
-                              value: '${weight.metabolicAge}세',
+                              label: 'Edad met.',
+                              value: '${weight.metabolicAge} años',
                             ),
                           ),
                         if (weight.proteinPercentage != null)
                           Expanded(
                             child: _MetricItem(
-                              label: '단백질',
+                              label: 'Proteína',
                               value: '${weight.proteinPercentage!.toStringAsFixed(1)}%',
                             ),
                           ),
@@ -280,7 +280,7 @@ class _WeightDisplay extends StatelessWidget {
                     if (weight.impedance != null) ...[
                       const SizedBox(height: 8),
                       Text(
-                        '임피던스: ${weight.impedance} Ω',
+                        'Impedancia: ${weight.impedance} Ω',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -298,7 +298,7 @@ class _WeightDisplay extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '측정값 없음',
+                    'Sin medición',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -374,7 +374,7 @@ class _BloodPressureDisplay extends StatelessWidget {
                     const Icon(Icons.favorite, color: Colors.red, size: 24),
                     const SizedBox(width: 8),
                     Text(
-                      '혈압',
+                      'Presión arterial',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -471,7 +471,7 @@ class _BloodPressureDisplay extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '측정값 없음',
+                    'Sin medición',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -514,9 +514,9 @@ class _SupabaseStatusBar extends StatelessWidget {
         }
 
         final displayText = !isInit
-            ? 'Supabase 미초기화 ❌'
+            ? 'Supabase no inicializado ❌'
             : status.isEmpty
-                ? 'Supabase 연결됨'
+                ? 'Supabase conectado'
                 : status;
 
         return Container(
@@ -559,28 +559,28 @@ class _ServiceStatusBar extends StatelessWidget {
         switch (state) {
           case BackgroundBleState.stopped:
             color = Colors.grey;
-            text = '서비스 중지됨';
+            text = 'Servicio detenido';
             icon = Icons.stop_circle_outlined;
             break;
           case BackgroundBleState.scanning:
             color = Colors.blue;
-            text = '기기 검색 중...';
+            text = 'Buscando dispositivos...';
             icon = Icons.bluetooth_searching;
             break;
           case BackgroundBleState.connecting:
             color = Colors.orange;
-            text = '연결 중...';
+            text = 'Conectando...';
             icon = Icons.bluetooth_connected;
             break;
           case BackgroundBleState.connected:
           case BackgroundBleState.receiving:
             color = Colors.green;
-            text = '연결됨';
+            text = 'Conectado';
             icon = Icons.check_circle;
             break;
           case BackgroundBleState.error:
             color = Colors.red;
-            text = '오류';
+            text = 'Error';
             icon = Icons.error_outline;
             break;
         }
@@ -685,12 +685,12 @@ class _BleLogDisplayState extends State<_BleLogDisplay> {
                   const Icon(Icons.terminal, size: 18, color: Colors.grey),
                   const SizedBox(width: 8),
                   Text(
-                    'BLE 로그',
+                    'Log BLE',
                     style: theme.textTheme.titleSmall,
                   ),
                   const Spacer(),
                   Text(
-                    '${_logs.length}개',
+                    '${_logs.length}',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -715,8 +715,8 @@ class _BleLogDisplayState extends State<_BleLogDisplay> {
                 itemCount: _logs.length,
                 itemBuilder: (context, index) {
                   final log = _logs[_logs.length - 1 - index];
-                  final isError = log.contains('실패') || log.contains('에러') || log.contains('거부');
-                  final isSuccess = log.contains('★') || log.contains('완료') || log.contains('성공');
+                  final isError = log.contains('error') || log.contains('fallo') || log.contains('Error') || log.contains('denegado');
+                  final isSuccess = log.contains('★') || log.contains('completado') || log.contains('éxito') || log.contains('conectado');
                   return Text(
                     log,
                     style: TextStyle(

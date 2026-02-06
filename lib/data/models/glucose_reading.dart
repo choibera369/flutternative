@@ -120,35 +120,35 @@ class GlucoseReading {
     return categoryFasting;
   }
 
-  /// 혈당 분류 한국어 명칭
+  /// Nombre de la categoría de glucosa
   String get categoryName {
     switch (category) {
       case GlucoseCategory.hypoglycemia:
-        return '저혈당';
+        return 'Hipoglucemia';
       case GlucoseCategory.normal:
-        return '정상';
+        return 'Normal';
       case GlucoseCategory.prediabetes:
-        return '당뇨병 전단계';
+        return 'Prediabetes';
       case GlucoseCategory.diabetes:
-        return '당뇨병 범위';
+        return 'Rango diabético';
     }
   }
 
-  /// 식사 상태 한국어 명칭
+  /// Nombre del contexto alimentario
   String get mealContextName {
     switch (mealContext) {
       case MealContext.fasting:
-        return '공복';
+        return 'Ayuno';
       case MealContext.preprandial:
-        return '식전';
+        return 'Antes de comer';
       case MealContext.postprandial:
-        return '식후';
+        return 'Después de comer';
       case MealContext.casual:
-        return '무관';
+        return 'Casual';
       case MealContext.bedtime:
-        return '취침 전';
+        return 'Antes de dormir';
       case MealContext.unknown:
-        return '미지정';
+        return 'No especificado';
     }
   }
 

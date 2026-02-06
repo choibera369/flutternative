@@ -73,7 +73,7 @@ class _BackgroundServiceScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('자동 연결 서비스'),
+        title: const Text('Servicio de conexión automática'),
         actions: [
           IconButton(
             onPressed: () {
@@ -82,7 +82,7 @@ class _BackgroundServiceScreenState
               });
             },
             icon: const Icon(Icons.delete_outline),
-            tooltip: '로그 지우기',
+            tooltip: 'Borrar log',
           ),
         ],
       ),
@@ -104,7 +104,7 @@ class _BackgroundServiceScreenState
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '백그라운드 서비스',
+                            'Servicio en segundo plano',
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
@@ -134,7 +134,7 @@ class _BackgroundServiceScreenState
                               : Icons.stop,
                         ),
                         label: Text(
-                          state == BackgroundBleState.stopped ? '시작' : '중지',
+                          state == BackgroundBleState.stopped ? 'Iniciar' : 'Detener',
                         ),
                         style: FilledButton.styleFrom(
                           backgroundColor: state == BackgroundBleState.stopped
@@ -147,7 +147,7 @@ class _BackgroundServiceScreenState
                   if (latestMeasurement != null) ...[
                     const Divider(height: 24),
                     Text(
-                      '최근 측정',
+                      'Última medición',
                       style: theme.textTheme.labelMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -171,7 +171,7 @@ class _BackgroundServiceScreenState
                             const Text('mmHg'),
                             if (latestMeasurement.pulse != null)
                               Text(
-                                '맥박: ${latestMeasurement.pulse}',
+                                'Pulso: ${latestMeasurement.pulse}',
                                 style: theme.textTheme.bodySmall,
                               ),
                           ],
@@ -180,7 +180,7 @@ class _BackgroundServiceScreenState
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '측정 시간: ${_formatTime(latestMeasurement.timestamp)}',
+                      'Hora: ${_formatTime(latestMeasurement.timestamp)}',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -210,7 +210,7 @@ class _BackgroundServiceScreenState
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          '사용 방법 (Omron)',
+                          'Instrucciones (Omron)',
                           style: theme.textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: theme.colorScheme.primary,
@@ -219,8 +219,8 @@ class _BackgroundServiceScreenState
                       ],
                     ),
                     const SizedBox(height: 8),
-                    _buildStep(theme, '1', '혈압계에서 측정 (START 버튼)'),
-                    _buildStep(theme, '2', '측정 완료 → 자동 연결 & 전송'),
+                    _buildStep(theme, '1', 'Medir con tensiómetro (botón START)'),
+                    _buildStep(theme, '2', 'Medición completa → Conexión y envío automático'),
                     const SizedBox(height: 8),
                     Container(
                       padding: const EdgeInsets.all(8),
@@ -233,7 +233,7 @@ class _BackgroundServiceScreenState
                           const Icon(Icons.check_circle, color: Colors.green, size: 16),
                           const SizedBox(width: 8),
                           Text(
-                            '페어링 불필요 - 완전 자동',
+                            'Sin emparejamiento - Totalmente automático',
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: Colors.green,
                               fontWeight: FontWeight.bold,
@@ -258,14 +258,14 @@ class _BackgroundServiceScreenState
                 const Icon(Icons.terminal, size: 16),
                 const SizedBox(width: 8),
                 Text(
-                  '로그',
+                  'Log',
                   style: theme.textTheme.labelMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const Spacer(),
                 Text(
-                  '${_logs.length}개',
+                  '${_logs.length}',
                   style: theme.textTheme.labelSmall,
                 ),
               ],
@@ -282,7 +282,7 @@ class _BackgroundServiceScreenState
               child: _logs.isEmpty
                   ? Center(
                       child: Text(
-                        '로그가 없습니다',
+                        'No hay registros',
                         style: TextStyle(
                           color: Colors.grey[600],
                           fontFamily: 'monospace',
@@ -316,17 +316,17 @@ class _BackgroundServiceScreenState
   String _getStateText(BackgroundBleState state) {
     switch (state) {
       case BackgroundBleState.stopped:
-        return '중지됨';
+        return 'Detenido';
       case BackgroundBleState.scanning:
-        return '기기 검색 중...';
+        return 'Buscando dispositivos...';
       case BackgroundBleState.connecting:
-        return '연결 중...';
+        return 'Conectando...';
       case BackgroundBleState.connected:
-        return '연결됨';
+        return 'Conectado';
       case BackgroundBleState.receiving:
-        return '데이터 수신 대기 중';
+        return 'Esperando datos';
       case BackgroundBleState.error:
-        return '오류 발생';
+        return 'Error';
     }
   }
 
@@ -348,16 +348,16 @@ class _BackgroundServiceScreenState
   }
 
   Color _getLogColor(String log) {
-    if (log.contains('에러') || log.contains('실패') || log.contains('Error')) {
+    if (log.contains('error') || log.contains('fallo') || log.contains('Error') || log.contains('denegado')) {
       return Colors.red[300]!;
     }
-    if (log.contains('연결됨') || log.contains('완료') || log.contains('성공')) {
+    if (log.contains('conectado') || log.contains('completado') || log.contains('éxito') || log.contains('★')) {
       return Colors.green[300]!;
     }
-    if (log.contains('경고') || log.contains('Warning')) {
+    if (log.contains('advertencia') || log.contains('Warning')) {
       return Colors.orange[300]!;
     }
-    if (log.contains('혈압 측정')) {
+    if (log.contains('presión arterial')) {
       return Colors.cyan[300]!;
     }
     return Colors.grey[400]!;
