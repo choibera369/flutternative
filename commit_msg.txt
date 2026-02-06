@@ -1,0 +1,9 @@
+feat(flutter): kiosk mode, scan throttle fix, standby full reset
+
+- Kiosk mode: home launcher, back button block, immersive UI, keep screen on
+- Auto-launch MainActivity on boot (BootReceiver)
+- DeviceAdminReceiver for optional Lock Task Mode
+- Fix BLE scan throttle: restore 10s interval (Android 30s/5x limit)
+- Standby full reset: stop/start service cycle, ignore old broadcasts
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>

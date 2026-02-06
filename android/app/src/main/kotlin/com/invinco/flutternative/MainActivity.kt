@@ -1,9 +1,17 @@
 package com.invinco.flutternative
 
+import android.app.admin.DevicePolicyManager
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
+import android.content.ComponentName
 import android.content.Context
+import android.os.Build
+import android.os.Bundle
 import android.util.Log
+import android.view.View
+import android.view.WindowInsets
+import android.view.WindowInsetsController
+import android.view.WindowManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -13,6 +21,19 @@ import io.reactivex.plugins.RxJavaPlugins
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.invinco.flutternative/bluetooth"
     private val BACKGROUND_CHANNEL = "com.invinco.flutternative/background_ble"
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        // 키오스크 모드 시작
+        enableKioskMode()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // 앱으로 돌아올 때마다 몰입 모드 재적용
+        hideSystemUI()
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -72,6 +93,59 @@ class MainActivity : FlutterActivity() {
                 }
             }
         }
+    }
+
+    /**
+     * 키오스크 모드 활성화
+     * Device Owner로 설정된 경우 Lock Task Mode로 진입하여
+     * 홈/뒤로/최근앱 버튼 모두 차단
+     */
+    private fun enableKioskMode() {
+        val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+        val adminComponent = ComponentName(this, KioskDeviceAdmin::class.java)
+
+        if (dpm.isDeviceOwnerApp(packageName)) {
+            // Device Owner → Lock Task 허용 패키지 등록
+            dpm.setLockTaskPackages(adminComponent, arrayOf(packageName))
+            Log.i("Kiosk", "Lock Task Mode 시작")
+            startLockTask()
+        } else {
+            Log.w("Kiosk", "Device Owner 아님 - Lock Task 불가. ADB 명령 필요:")
+            Log.w("Kiosk", "adb shell dpm set-device-owner com.invinco.flutternative/.KioskDeviceAdmin")
+        }
+
+        // 화면 항상 켜짐
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    }
+
+    /**
+     * 시스템 UI 숨기기 (상태바, 내비게이션 바)
+     */
+    private fun hideSystemUI() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.insetsController?.let {
+                it.hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
+                it.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = (
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    or View.SYSTEM_UI_FLAG_FULLSCREEN
+                    or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+            )
+        }
+    }
+
+    /**
+     * 뒤로 가기 버튼 차단
+     */
+    @Suppress("OVERRIDE_DEPRECATION")
+    override fun onBackPressed() {
+        // 키오스크 모드에서는 뒤로 가기 차단
     }
 
     private fun getBondedDevices(): List<Map<String, Any>> {
