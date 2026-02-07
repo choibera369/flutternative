@@ -13,7 +13,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.os.PowerManager
 import android.os.SystemClock
 import android.util.Log
@@ -78,12 +80,18 @@ class BleForegroundService : Service() {
         val notification = createNotification()
         startForeground(NOTIFICATION_ID, notification)
 
-        // 헤드리스 FlutterEngine이 아직 없으면 생성
         if (flutterEngine == null) {
+            // 최초 시작 또는 서비스 재생성 → FlutterEngine 생성
             startHeadlessFlutterEngine()
+            Log.i(TAG, "FlutterEngine 새로 생성됨 (최초 시작)")
+        } else {
+            // AlarmManager에 의한 재시작 → Dart에 BLE 전체 재시작 요청
+            // BLE 스택 노후화 방지를 위해 Dart측 resetToStandby() 호출
+            Log.i(TAG, "AlarmManager 트리거 → Dart에 BLE 재시작 요청")
+            notifyDartToRestart()
         }
 
-        // AlarmManager로 주기적 재시작 예약 (안전망)
+        // 다음 AlarmManager 재시작 예약 (Doze 모드에서도 동작하는 정확한 알람)
         scheduleRestart()
 
         return START_STICKY
@@ -139,8 +147,12 @@ class BleForegroundService : Service() {
     }
 
     /**
-     * AlarmManager로 30분마다 서비스 재시작 예약 (안전망)
-     * Android가 서비스를 죽여도 AlarmManager가 다시 깨움
+     * AlarmManager로 30분 후 서비스 재시작 예약 (안전망)
+     *
+     * setExactAndAllowWhileIdle 사용 → Doze 모드에서도 정확히 실행됨
+     * (기존 setInexactRepeating은 Doze에서 무기한 지연되어 2시간 후 BLE 멈춤)
+     *
+     * 원샷 알람이므로 매번 onStartCommand에서 다시 예약 (체이닝)
      */
     private fun scheduleRestart() {
         try {
@@ -153,14 +165,23 @@ class BleForegroundService : Service() {
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
 
-            // setInexactRepeating → Doze 모드에서도 비교적 잘 동작
-            alarmManager.setInexactRepeating(
-                AlarmManager.ELAPSED_REALTIME_WAKEUP,
-                SystemClock.elapsedRealtime() + RESTART_INTERVAL_MS,
-                RESTART_INTERVAL_MS,
-                pendingIntent
-            )
-            Log.i(TAG, "AlarmManager 재시작 예약 완료 (30분 간격)")
+            val triggerTime = SystemClock.elapsedRealtime() + RESTART_INTERVAL_MS
+
+            // setExactAndAllowWhileIdle: Doze 모드에서도 정확히 실행
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                    triggerTime,
+                    pendingIntent
+                )
+            } else {
+                alarmManager.setExact(
+                    AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                    triggerTime,
+                    pendingIntent
+                )
+            }
+            Log.i(TAG, "AlarmManager 재시작 예약 완료 (${RESTART_INTERVAL_MS / 60000}분 후, exact+doze)")
         } catch (e: Exception) {
             Log.e(TAG, "AlarmManager 예약 실패: ${e.message}", e)
         }
@@ -183,6 +204,36 @@ class BleForegroundService : Service() {
             Log.i(TAG, "AlarmManager 재시작 예약 취소")
         } catch (e: Exception) {
             Log.e(TAG, "AlarmManager 취소 실패: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Dart에 BLE 전체 재시작 요청 (AlarmManager 트리거 시 호출)
+     *
+     * MethodChannel로 Dart의 BackgroundBleService.resetToStandby()를 호출합니다.
+     * Dart가 응답하지 않거나 에러가 발생하면 FlutterEngine을 재생성합니다.
+     */
+    private fun notifyDartToRestart() {
+        flutterEngine?.let { engine ->
+            Handler(Looper.getMainLooper()).post {
+                try {
+                    MethodChannel(engine.dartExecutor.binaryMessenger, BACKGROUND_CHANNEL_NAME)
+                        .invokeMethod("forceRestart", null)
+                    Log.i(TAG, "Dart forceRestart 전송 완료")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Dart 알림 실패 → FlutterEngine 재생성: ${e.message}")
+                    try {
+                        engine.destroy()
+                    } catch (destroyError: Exception) {
+                        Log.e(TAG, "FlutterEngine destroy 실패: ${destroyError.message}")
+                    }
+                    flutterEngine = null
+                    startHeadlessFlutterEngine()
+                }
+            }
+        } ?: run {
+            Log.w(TAG, "FlutterEngine 없음 → 새로 생성")
+            startHeadlessFlutterEngine()
         }
     }
 

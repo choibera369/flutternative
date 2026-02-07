@@ -82,6 +82,11 @@ class BackgroundBleService {
   static const _watchdogInterval = Duration(minutes: 5);
   DateTime? _lastScanActivityAt;  // 마지막 스캔 결과 수신 시각
 
+  /// 선제적 전체 재시작 타이머 (90분)
+  /// BLE 스택이 2시간 후 멈추는 문제 방지 → 죽기 전에 선제 리셋
+  Timer? _proactiveRestartTimer;
+  static const _proactiveRestartInterval = Duration(minutes: 90);
+
   /// 스캔 실패 카운터 (지수 백오프용)
   int _scanFailureCount = 0;
   static const _maxBackoffSeconds = 60;  // 최대 백오프: 60초
@@ -134,6 +139,7 @@ class BackgroundBleService {
     _bondedXiaomiName = null;
     _scanFailureCount = 0;
     _lastScanActivityAt = null;
+    _proactiveRestartCount++;
 
     // 3. 표시 초기화
     _weightSubject.add(null);
@@ -246,6 +252,13 @@ class BackgroundBleService {
     // Watchdog 타이머 시작 (5분마다 BLE 스캔 건강 상태 점검)
     _startWatchdog();
 
+    // 선제적 전체 재시작 타이머 시작 (90분)
+    // BLE 스택 노후화로 2시간 후 멈추는 문제 방지
+    _startProactiveRestartTimer();
+
+    // Native AlarmManager에서 forceRestart 수신 핸들러 등록
+    _setupNativeCallHandler();
+
     // 배터리 최적화 면제 상태 확인 (로그만)
     _checkBatteryOptimization();
   }
@@ -302,6 +315,9 @@ class BackgroundBleService {
 
     _watchdogTimer?.cancel();
     _watchdogTimer = null;
+
+    _proactiveRestartTimer?.cancel();
+    _proactiveRestartTimer = null;
 
     _bondedOmronTimer?.cancel();
     _bondedOmronTimer = null;
@@ -1483,6 +1499,51 @@ class BackgroundBleService {
     });
 
     _log('Watchdog iniciado (intervalo: ${_watchdogInterval.inMinutes} min)');
+  }
+
+  /// 선제적 전체 재시작 타이머 시작
+  /// BLE 스택이 2시간 연속 스캔 후 응답 불능이 되는 문제를 방지하기 위해
+  /// 90분마다 전체 서비스를 재시작합니다 (스캔 720회 누적 전에 리셋)
+  int _proactiveRestartCount = 0;
+
+  void _startProactiveRestartTimer() {
+    _proactiveRestartTimer?.cancel();
+    _proactiveRestartTimer = Timer(_proactiveRestartInterval, () {
+      if (_isRunning) {
+        _log('');
+        _log('⟳══════════════════════════════════════════════');
+        _log('  REINICIO PREVENTIVO: ciclo de ${_proactiveRestartInterval.inMinutes} min');
+        _log('  (Previene fallo de BLE por uso prolongado)');
+        _log('  Reinicios acumulados: $_proactiveRestartCount');
+        _log('⟳══════════════════════════════════════════════');
+        _log('');
+        resetToStandby();
+      }
+    });
+    _log('⟳ Reinicio preventivo programado (${_proactiveRestartInterval.inMinutes} min)');
+  }
+
+  /// Native AlarmManager에서 forceRestart 호출을 수신하는 핸들러
+  /// AlarmManager가 Doze 모드에서도 정확히 실행되어 BLE 재시작을 보장
+  void _setupNativeCallHandler() {
+    _channel.setMethodCallHandler((call) async {
+      switch (call.method) {
+        case 'forceRestart':
+          _log('');
+          _log('⟳══════════════════════════════════════════════');
+          _log('  REINICIO FORZADO desde AlarmManager nativo');
+          _log('  (Mecanismo de seguridad contra modo Doze)');
+          _log('⟳══════════════════════════════════════════════');
+          _log('');
+          await resetToStandby();
+          return true;
+        default:
+          throw PlatformException(
+            code: 'NOT_IMPLEMENTED',
+            message: 'Method ${call.method} not implemented',
+          );
+      }
+    });
   }
 
   /// 배터리 최적화 면제 상태 확인
