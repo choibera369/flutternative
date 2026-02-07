@@ -1,5 +1,6 @@
 package com.invinco.flutternative
 
+import android.app.AlarmManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -7,10 +8,14 @@ import android.app.PendingIntent
 import android.app.Service
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
+import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import io.flutter.FlutterInjector
@@ -28,6 +33,11 @@ import io.flutter.plugins.GeneratedPluginRegistrant
  * 부팅 시 BootReceiver에 의해 시작되면 헤드리스 FlutterEngine을
  * 생성하여 Dart backgroundMain() 엔트리포인트를 실행합니다.
  * UI 없이 BLE 로직만 백그라운드에서 동작합니다.
+ *
+ * 2시간 후 BLE 끊김 방지:
+ * - PARTIAL_WAKE_LOCK: CPU가 깊은 절전 모드 진입 방지
+ * - AlarmManager: 30분마다 서비스 재시작 (안전망)
+ * - Doze 모드 대응: 배터리 최적화 면제 요청
  */
 class BleForegroundService : Service() {
 
@@ -37,6 +47,8 @@ class BleForegroundService : Service() {
         private const val NOTIFICATION_ID = 1001
         private const val CHANNEL_NAME = "건강 기기 연결"
         private const val BACKGROUND_CHANNEL_NAME = "com.invinco.flutternative/background_ble"
+        private const val RESTART_ALARM_REQUEST_CODE = 2001
+        private const val RESTART_INTERVAL_MS = 30 * 60 * 1000L // 30분
 
         fun start(context: Context) {
             val intent = Intent(context, BleForegroundService::class.java)
@@ -54,10 +66,12 @@ class BleForegroundService : Service() {
     }
 
     private var flutterEngine: FlutterEngine? = null
+    private var wakeLock: PowerManager.WakeLock? = null
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        acquireWakeLock()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -69,6 +83,9 @@ class BleForegroundService : Service() {
             startHeadlessFlutterEngine()
         }
 
+        // AlarmManager로 주기적 재시작 예약 (안전망)
+        scheduleRestart()
+
         return START_STICKY
     }
 
@@ -78,9 +95,95 @@ class BleForegroundService : Service() {
 
     override fun onDestroy() {
         Log.i(TAG, "서비스 종료 - FlutterEngine 정리")
+        cancelRestart()
+        releaseWakeLock()
         flutterEngine?.destroy()
         flutterEngine = null
         super.onDestroy()
+    }
+
+    /**
+     * PARTIAL_WAKE_LOCK 획득 - CPU가 깊은 절전 모드 진입 방지
+     * Doze 모드에서도 BLE 스캔이 계속되도록 보장
+     */
+    private fun acquireWakeLock() {
+        try {
+            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+            wakeLock = pm.newWakeLock(
+                PowerManager.PARTIAL_WAKE_LOCK,
+                "flutternative:ble_scan_lock"
+            ).apply {
+                acquire()  // 서비스 종료 시 release
+            }
+            Log.i(TAG, "WakeLock 획득 완료")
+        } catch (e: Exception) {
+            Log.e(TAG, "WakeLock 획득 실패: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Wake Lock 해제
+     */
+    private fun releaseWakeLock() {
+        try {
+            wakeLock?.let {
+                if (it.isHeld) {
+                    it.release()
+                    Log.i(TAG, "WakeLock 해제 완료")
+                }
+            }
+            wakeLock = null
+        } catch (e: Exception) {
+            Log.e(TAG, "WakeLock 해제 실패: ${e.message}", e)
+        }
+    }
+
+    /**
+     * AlarmManager로 30분마다 서비스 재시작 예약 (안전망)
+     * Android가 서비스를 죽여도 AlarmManager가 다시 깨움
+     */
+    private fun scheduleRestart() {
+        try {
+            val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            val restartIntent = Intent(this, BleForegroundService::class.java)
+            val pendingIntent = PendingIntent.getService(
+                this,
+                RESTART_ALARM_REQUEST_CODE,
+                restartIntent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+
+            // setInexactRepeating → Doze 모드에서도 비교적 잘 동작
+            alarmManager.setInexactRepeating(
+                AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                SystemClock.elapsedRealtime() + RESTART_INTERVAL_MS,
+                RESTART_INTERVAL_MS,
+                pendingIntent
+            )
+            Log.i(TAG, "AlarmManager 재시작 예약 완료 (30분 간격)")
+        } catch (e: Exception) {
+            Log.e(TAG, "AlarmManager 예약 실패: ${e.message}", e)
+        }
+    }
+
+    /**
+     * AlarmManager 예약 취소
+     */
+    private fun cancelRestart() {
+        try {
+            val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            val restartIntent = Intent(this, BleForegroundService::class.java)
+            val pendingIntent = PendingIntent.getService(
+                this,
+                RESTART_ALARM_REQUEST_CODE,
+                restartIntent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+            alarmManager.cancel(pendingIntent)
+            Log.i(TAG, "AlarmManager 재시작 예약 취소")
+        } catch (e: Exception) {
+            Log.e(TAG, "AlarmManager 취소 실패: ${e.message}", e)
+        }
     }
 
     /**
@@ -120,6 +223,7 @@ class BleForegroundService : Service() {
      * Dart 측 BackgroundBleService가 사용하는 플랫폼 채널을 등록합니다.
      * - getBondedDevices: 페어링된 블루투스 기기 목록 반환
      * - startForegroundService / stopForegroundService: 서비스 제어
+     * - isIgnoringBatteryOptimizations: 배터리 최적화 면제 확인
      */
     private fun setupMethodChannel(engine: FlutterEngine) {
         MethodChannel(engine.dartExecutor.binaryMessenger, BACKGROUND_CHANNEL_NAME)
@@ -144,6 +248,10 @@ class BleForegroundService : Service() {
                         } catch (e: Exception) {
                             result.error("SERVICE_ERROR", e.message, null)
                         }
+                    }
+                    "isIgnoringBatteryOptimizations" -> {
+                        val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+                        result.success(pm.isIgnoringBatteryOptimizations(packageName))
                     }
                     else -> {
                         result.notImplemented()

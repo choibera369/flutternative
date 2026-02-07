@@ -5,8 +5,12 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
 import android.util.Log
 import android.view.View
 import android.view.WindowInsets
@@ -27,6 +31,9 @@ class MainActivity : FlutterActivity() {
 
         // 키오스크 모드 시작
         enableKioskMode()
+
+        // 배터리 최적화 면제 요청 (MIUI/Android Doze 방지 - 핵심!)
+        requestBatteryOptimizationExemption()
     }
 
     override fun onResume() {
@@ -88,10 +95,41 @@ class MainActivity : FlutterActivity() {
                         result.error("BLUETOOTH_ERROR", e.message, null)
                     }
                 }
+                "isIgnoringBatteryOptimizations" -> {
+                    val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+                    result.success(pm.isIgnoringBatteryOptimizations(packageName))
+                }
+                "requestBatteryOptimizationExemption" -> {
+                    requestBatteryOptimizationExemption()
+                    result.success(true)
+                }
                 else -> {
                     result.notImplemented()
                 }
             }
+        }
+    }
+
+    /**
+     * 배터리 최적화 면제 요청
+     *
+     * Android Doze 모드 + MIUI 공격적 배터리 관리 대응
+     * 이 설정 없으면 2시간 후 BLE 서비스가 중단됨
+     */
+    private fun requestBatteryOptimizationExemption() {
+        try {
+            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+            if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+                Log.i("Battery", "배터리 최적화 면제 요청 중...")
+                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+                startActivity(intent)
+            } else {
+                Log.i("Battery", "이미 배터리 최적화 면제됨")
+            }
+        } catch (e: Exception) {
+            Log.e("Battery", "배터리 최적화 면제 요청 실패: ${e.message}", e)
         }
     }
 

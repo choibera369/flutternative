@@ -77,6 +77,15 @@ class BackgroundBleService {
   Timer? _bpDisplayTimer;
   static const _displayDuration = Duration(seconds: 20);
 
+  /// Watchdog 타이머 - 5분마다 BLE 스캔 상태 점검
+  Timer? _watchdogTimer;
+  static const _watchdogInterval = Duration(minutes: 5);
+  DateTime? _lastScanActivityAt;  // 마지막 스캔 결과 수신 시각
+
+  /// 스캔 실패 카운터 (지수 백오프용)
+  int _scanFailureCount = 0;
+  static const _maxBackoffSeconds = 60;  // 최대 백오프: 60초
+
   /// 중복 전송 방지
   List<int>? _lastWeightRawData;  // 마지막 처리된 광고 원본 바이트 (스캔 dedup)
   DateTime? _lastWeightProcessedAt;  // 마지막 체중 데이터 처리 시각
@@ -123,6 +132,8 @@ class BackgroundBleService {
     _bondedOmronName = null;
     _bondedXiaomiAddress = null;
     _bondedXiaomiName = null;
+    _scanFailureCount = 0;
+    _lastScanActivityAt = null;
 
     // 3. 표시 초기화
     _weightSubject.add(null);
@@ -231,6 +242,12 @@ class BackgroundBleService {
       _log('BLE no listo ($bleStatus) - esperando activación...');
       _stateSubject.add(BackgroundBleState.scanning);
     }
+
+    // Watchdog 타이머 시작 (5분마다 BLE 스캔 건강 상태 점검)
+    _startWatchdog();
+
+    // 배터리 최적화 면제 상태 확인 (로그만)
+    _checkBatteryOptimization();
   }
 
   /// 블루투스 권한 확인 및 요청
@@ -282,6 +299,9 @@ class BackgroundBleService {
 
     _scanRestartTimer?.cancel();
     _scanRestartTimer = null;
+
+    _watchdogTimer?.cancel();
+    _watchdogTimer = null;
 
     _bondedOmronTimer?.cancel();
     _bondedOmronTimer = null;
@@ -677,6 +697,10 @@ class BackgroundBleService {
 
   /// 기기 발견 시 처리
   void _onDeviceDiscovered(DiscoveredDevice device) {
+    // 스캔 활동 기록 (watchdog용)
+    _lastScanActivityAt = DateTime.now();
+    _scanFailureCount = 0;  // 스캔 성공 → 실패 카운터 리셋
+
     // 이름 없는 기기는 무시
     if (device.name.isEmpty) return;
 
@@ -1408,14 +1432,72 @@ class BackgroundBleService {
     });
   }
 
-  /// 스캔 재시작 예약
+  /// 스캔 재시작 예약 (지수 백오프 적용)
   void _scheduleRescan() {
     _scanRestartTimer?.cancel();
-    _scanRestartTimer = Timer(const Duration(seconds: 3), () {
+    _scanFailureCount++;
+
+    // 지수 백오프: 3s → 6s → 12s → 24s → 48s → 60s(max)
+    final backoffSeconds = (3 * (1 << (_scanFailureCount - 1).clamp(0, 4)))
+        .clamp(3, _maxBackoffSeconds);
+
+    _log('Reescaneo programado en ${backoffSeconds}s (fallo #$_scanFailureCount)');
+
+    _scanRestartTimer = Timer(Duration(seconds: backoffSeconds), () {
       if (_isRunning) {
         _startScan();
       }
     });
+  }
+
+  /// Watchdog 타이머 시작
+  /// 5분마다 BLE 스캔이 정상 동작 중인지 점검
+  /// 10분 이상 스캔 결과 없으면 전체 서비스 재시작
+  void _startWatchdog() {
+    _watchdogTimer?.cancel();
+    _lastScanActivityAt = DateTime.now();
+
+    _watchdogTimer = Timer.periodic(_watchdogInterval, (timer) {
+      if (!_isRunning) {
+        timer.cancel();
+        return;
+      }
+
+      final now = DateTime.now();
+      final sinceLastActivity = _lastScanActivityAt != null
+          ? now.difference(_lastScanActivityAt!)
+          : const Duration(minutes: 999);
+
+      if (sinceLastActivity > const Duration(minutes: 10)) {
+        // 10분 이상 스캔 결과 없음 → 전체 서비스 재시작
+        _log('⚠ WATCHDOG: Sin actividad BLE por ${sinceLastActivity.inMinutes} min → reinicio completo');
+        _scanFailureCount = 0;
+        resetToStandby();
+      } else if (sinceLastActivity > const Duration(minutes: 5)) {
+        // 5분 이상 → 스캔만 재시작
+        _log('⚠ WATCHDOG: Sin actividad BLE por ${sinceLastActivity.inMinutes} min → reinicio escaneo');
+        _startScan();
+      } else {
+        _log('✓ WATCHDOG: BLE activo (última actividad hace ${sinceLastActivity.inSeconds}s)');
+      }
+    });
+
+    _log('Watchdog iniciado (intervalo: ${_watchdogInterval.inMinutes} min)');
+  }
+
+  /// 배터리 최적화 면제 상태 확인
+  Future<void> _checkBatteryOptimization() async {
+    try {
+      final isExempt = await _channel.invokeMethod<bool>('isIgnoringBatteryOptimizations');
+      if (isExempt == true) {
+        _log('✓ Optimización de batería: EXENTO (bueno)');
+      } else {
+        _log('⚠ Optimización de batería: NO EXENTO - BLE puede detenerse tras ~2h');
+        _log('  → Desactive optimización de batería en Ajustes > Batería > [App]');
+      }
+    } catch (e) {
+      _log('No se pudo verificar optimización de batería: $e');
+    }
   }
 
   /// 로그 출력
